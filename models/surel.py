@@ -50,23 +50,23 @@ def get_walks(ei, wl=4, nwalks=200):
     return H, T, walks_per_node
 
 class SUREL(nn.Module):
-    def __init__(self, wl, embedding_size=64):
+    def __init__(self, wl, embedding_size=64, device='cpu'):
         super().__init__()
         self.embedder = nn.Sequential(
-            nn.Linear(wl*2, embedding_size*2), 
+            nn.Linear(wl*2, embedding_size*2, device=device), 
             nn.Dropout(0.1),
             nn.ReLU(),
-            nn.Linear(embedding_size*2, embedding_size),
+            nn.Linear(embedding_size*2, embedding_size, device=device),
             nn.Dropout(0.1),
             nn.ReLU(),
-            nn.LSTM(embedding_size, embedding_size, 2)
+            nn.LSTM(embedding_size, embedding_size, 2, device=device)
         )
 
         self.lp = nn.Sequential(
-            nn.Linear(embedding_size, embedding_size), 
+            nn.Linear(embedding_size, embedding_size, device=device), 
             nn.Dropout(0.1),
             nn.ReLU(),
-            nn.Linear(embedding_size, 1)
+            nn.Linear(embedding_size, 1, device=device)
         )
 
     def embed(self, H,T,walks, src,dst):

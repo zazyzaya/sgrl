@@ -17,65 +17,69 @@ PyTorch implimentation of SUREL:
 https://arxiv.org/pdf/2202.13538.pdf
 '''
 
-WL = 4
-NW = 50
+WL = 3
+NW = 200
 embed_dim = 64
 epochs = 10_000
 patience = 5 # Same as paper 
 lr = 1e-3
-bs = 256
+bs = 1_500
+inference_bs = 1_500
 
-INPUT = '/mnt/raid1_ssd_4tb/datasets/LANL15/ntlm_auths'
+DEVICE = 3
+
+#INPUT = '/mnt/raid1_ssd_4tb/datasets/LANL15/ntlm_auths'
+INPUT = '/mnt/raid0_ssd_8tb/isaiah/LANL15/ntlm_auths'
 g = torch.load(f'{INPUT}/nontemporal_ntlm.pt')
 
 # TODO validation set also 
 tr_ei, (te_ei, te_y) = make_training_split(g)
 H,T,walks = get_walks(tr_ei, wl=WL, nwalks=NW)
+T = T.to(DEVICE)
 
-model = SUREL(WL, embedding_size=embed_dim)
+model = SUREL(WL, embedding_size=embed_dim, device=DEVICE)
 opt = Adam(model.parameters(), lr=lr)
 nbatches = ceil(tr_ei.size(1) / bs)
 loss_fn = nn.BCEWithLogitsLoss()
 
 for e in range(epochs):
     # Shuffle edges 
+    model.train()
     tr_ei = tr_ei[:, torch.randperm(tr_ei.size(1))]
-    for b in range(nbatches): 
-        model.train()
-        opt.zero_grad()
-        st = b*bs; en = (b+1)*bs
-        
-        pos = tr_ei[:, st:en]
-        neg = torch.randint(0, tr_ei.max()+1, (2,pos.size(1)))
 
-        pos_score = model(H,T,walks,*pos)
-        neg_score = model(H,T,walks,*neg)
-        scores = torch.cat([pos_score, neg_score])
+    pos = tr_ei[:, :bs]
+    neg = torch.randint(0, tr_ei.max()+1, (2,pos.size(1)))
 
-        y = torch.zeros(pos_score.size(0)*2,1)
-        y[pos_score.size(0):] = 1
+    pos_score = model(H,T,walks,*pos)
+    neg_score = model(H,T,walks,*neg)
+    scores = torch.cat([pos_score, neg_score])
 
-        loss = loss_fn(scores, y)
-        loss.backward()
-        opt.step() 
+    y = torch.ones(pos_score.size(0)*2,1, device=DEVICE)
+    y[pos_score.size(0):] = 0
 
-        print(f'[{e}-{b}] {loss.item()}')
+    loss = loss_fn(scores, y)
+    loss.backward()
+    opt.step() 
 
-        if b % 100 == 0 and b:
-            model.eval()
-            with torch.no_grad():
-                te_score = model(H,T,walks, *te_ei)
-                print(f"AUC: {roc_auc_score(te_y, te_score)}")
-                print(f"AP:  {average_precision_score(te_y, te_score)}")
-                
-                with open('tracker.txt', 'a+') as f: 
-                    f.write(f"[{e}-{b}]\n")
-                    f.write(f"AUC: {roc_auc_score(te_y, te_score)}\n")
-                    f.write(f"AP:  {average_precision_score(te_y, te_score)}\n\n")
+    print(f'[{e}] {loss.item()}')
+
+    if e % 99 == 0 and e:
+        model.eval()
+        with torch.no_grad():
+            te_score = []
+            for i in tqdm(range(ceil(te_ei.size(1) / inference_bs)), desc='Testing...'):
+                st = inference_bs*i; en = (i+1)*inference_bs
+                edges = te_ei[:, st:en]
+                if edges.size(1):
+                    te_score.append(model(H,T,walks, *edges))
+            
+            te_score = 1-torch.sigmoid(torch.cat(te_score)).cpu()
+            print(f"AUC: {roc_auc_score(te_y, te_score)}")
+            print(f"AP:  {average_precision_score(te_y, te_score)}")
+            
+            with open('tracker.txt', 'a+') as f: 
+                f.write(f"[{e}]\n")
+                f.write(f"AUC: {roc_auc_score(te_y, te_score)}\n")
+                f.write(f"AP:  {average_precision_score(te_y, te_score)}\n\n")
                     
-
-    model.eval()
-    with torch.no_grad():
-        te_score = model(H,T,walks, *te_ei)
-        print(f"AUC: {roc_auc_score(te_y, te_score)}")
-        print(f"AP:  {average_precision_score(te_y, te_score)}")
+    torch.save(model.state_dict(), 'weights.pt')

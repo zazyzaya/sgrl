@@ -11,10 +11,12 @@ Keeps track of edge weight instead of timestamp.
 All held in single file (hopefully..)
 '''
 
-DATA = '/mnt/raid1_ssd_4tb/datasets/LANL15'
+# DATA = '/mnt/raid1_ssd_4tb/datasets/LANL15'
+DATA = '/mnt/raid0_ssd_8tb/isaiah/LANL15'
 AUTH = f'{DATA}/auth.txt.gz'
 RED  = f'{DATA}/redteam.txt.gz'
-OUT = 'tmp'
+#OUT = 'tmp'
+OUT = f'{DATA}/ntlm_auths'
 
 auth = gzip.open(AUTH, 'rt')
 red = gzip.open(RED, 'rt')
