@@ -11,6 +11,7 @@ from tqdm import tqdm
 
 from utils import make_training_split
 from models.surel import get_walks, SUREL
+from databuilders.lanl_globals import LANL_DIR
 
 '''
 PyTorch implimentation of SUREL: 
@@ -27,10 +28,7 @@ bs = 1_500
 inference_bs = 1_500
 
 DEVICE = 3
-
-#INPUT = '/mnt/raid1_ssd_4tb/datasets/LANL15/ntlm_auths'
-INPUT = '/mnt/raid0_ssd_8tb/isaiah/LANL15/ntlm_auths'
-g = torch.load(f'{INPUT}/nontemporal_ntlm.pt')
+g = torch.load(f'{LANL_DIR}/nontemporal_ntlm.pt')
 
 # TODO validation set also 
 tr_ei, (te_ei, te_y) = make_training_split(g)

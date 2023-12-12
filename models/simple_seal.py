@@ -7,11 +7,13 @@ from torch_geometric.nn.models import GCN
 class SEAL(nn.Module):
     '''
     Completely hangs on dense graphs (e.g. LANL)
+    The paper talks about needing to use 1-hop for 
+    a dataset w 10k edges, or they had OOM errors.. 
     '''
     def __init__(self, khops, embed_size=32, hidden=64):
         super().__init__()
         self.khops = khops 
-        self.dist_mp = MessagePassing(aggr='sum')
+        self.dist_mp = MessagePassing(aggr='min')
 
         self.enc_dim = self.__drnl_idx(
             *torch.tensor([khops*2]).repeat(2).split(1)
@@ -31,8 +33,13 @@ class SEAL(nn.Module):
     def __drnl_idx(self, dx,dy):
         d = dx+dy
         idx = 1+torch.min(dx,dy) + d/2 * (d/2 + d%2 - 1)
-        idx = idx.nan_to_num(0)
-        return idx.long()
+        idx = idx.nan_to_num(0,0,0)
+        
+        # Need to do some cleanup
+        idx[torch.isinf(d)] = 0 
+        idx[d <= 1] = 1
+
+        return idx.long().flatten()
 
     def dnrl(self, dx,dy):
         out = torch.zeros(dx.size(0), self.enc_dim)
@@ -48,7 +55,7 @@ class SEAL(nn.Module):
 
         # There must be a way to parallelize this... 
         for i in range(query_edges.size(1)): 
-            n, ei, _, x_y = k_hop_subgraph(
+            n, ei, x_y, _ = k_hop_subgraph(
                 query_edges[:,i], 
                 self.khops, 
                 edge_index,
@@ -68,6 +75,8 @@ class SEAL(nn.Module):
         dist[targets[1], 1] = 0
 
         for _ in range(self.khops):
+            # TODO if there are no edges, defaults to 0 
+            # so everything gets set to 0 
             d = 1 + self.dist_mp.propagate(sgs, x=dist)
             dist = torch.min(dist, d)
 

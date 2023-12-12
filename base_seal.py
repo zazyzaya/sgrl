@@ -9,6 +9,7 @@ from torch_geometric.utils import degree
 
 from utils import make_training_split
 from models.simple_seal import SEAL
+from databuilders.lanl_globals import LANL_DIR
 
 '''
 PyTorch implimentation of SEAL: 
@@ -21,8 +22,7 @@ lr = 1e-3
 bs = 256
 khops = 1
 
-INPUT = '/mnt/raid1_ssd_4tb/datasets/LANL15/ntlm_auths'
-g = torch.load(f'{INPUT}/nontemporal_ntlm.pt')
+g = torch.load(f'{LANL_DIR}/nontemporal_ntlm.pt')
 
 print(f'Highest degree: {degree(g.edge_index[0]).max()/g.edge_index.size(1)}')
 
