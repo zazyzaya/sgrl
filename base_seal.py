@@ -9,6 +9,7 @@ from torch_geometric.utils import degree
 
 from utils import make_training_split
 from models.simple_seal import SEAL
+from models.grail import GraIL
 from databuilders.lanl_globals import LANL_DIR
 
 '''
@@ -20,16 +21,16 @@ epochs = 10_000
 patience = 5 # Same as paper 
 lr = 1e-3
 bs = 256
-khops = 1
+khops = 2
 
 g = torch.load(f'{LANL_DIR}/nontemporal_ntlm.pt')
 
-print(f'Highest degree: {degree(g.edge_index[0]).max()/g.edge_index.size(1)}')
+print(f'Highest degree: {degree(g.edge_index[1]).max()/g.edge_index.size(1)}')
 
 # TODO validation set also 
 tr_ei, (te_ei, te_y) = make_training_split(g)
 
-model = SEAL(khops=khops)
+model = GraIL(khops=khops)
 opt = Adam(model.parameters(), lr=lr)
 nbatches = ceil(tr_ei.size(1) / bs)
 loss_fn = nn.BCEWithLogitsLoss()
@@ -49,8 +50,8 @@ for e in range(epochs):
         labels,subgraphs,targets = model.sample(query_edges, tr_ei)
         scores = model.forward(labels, subgraphs, targets)
 
-        y = torch.zeros(pos.size(0)*2,1)
-        y[pos.size(0):] = 1
+        y = torch.zeros(pos.size(1)*2,1)
+        y[pos.size(1):] = 1
 
         loss = loss_fn(scores, y)
         loss.backward()

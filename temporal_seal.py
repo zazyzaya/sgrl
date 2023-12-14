@@ -10,19 +10,23 @@ from tqdm import tqdm
 from databuilders.lanl_globals import LANL_DIR, FIRST_RED, LAST_RED, LAST_FILE
 import generators as g 
 from models.simple_seal import SEAL 
+from models.grail import GraIL
 
 tr_graphs = list(range(1,FIRST_RED)) #+ list(range(LAST_RED+1, LAST_FILE))
 te_graphs = list(range(FIRST_RED, LAST_RED))
 
-KHOPS = 2
-LR = 0.01
+KHOPS = 3
+LR = 0.001
 EPOCHS = 1000 
 BATCH_SIZE = 256
 INFERENCE_BATCH_SIZE = 512
+GNN_DEPTH = 2
 HIDDEN = 64
 EMBEDDING = 32
 
-model = SEAL(KHOPS, gnn_depth=2)
+torch.set_num_threads(32)
+
+model = GraIL(KHOPS, gnn_depth=GNN_DEPTH)
 opt = Adam(model.parameters())
 loss_fn = BCEWithLogitsLoss()
 load_g = lambda x : torch.load(f'{LANL_DIR}/{x}.pt')
@@ -38,6 +42,7 @@ val = model.sample(edges, val_old)
     
 def train():
     cnt = 0 
+    te_scores = []
     for e in range(EPOCHS):
         prev_graph = load_g(0).edge_index
         for i in tr_graphs:
@@ -52,7 +57,7 @@ def train():
                 neg_query
             ], dim=1)
             labels = torch.zeros(full_query.size(1),1)
-            labels[:pos_query.size(0)] = 1.
+            labels[:pos_query.size(1)] = 1.
 
             x,ei,query = model.sample(full_query, prev_graph)
             scores = model(x,ei,query)
@@ -72,15 +77,18 @@ def train():
                 ap  = average_precision_score(labels, scores)
 
 
-            print(f'[{e}-{i}] LP Loss: {loss.item()}; Val AUC: {auc:0.4f}, AP: {ap:0.4f}')
+            print(f'[{e}-{i}] LP Loss: {loss.item():05f}; Val AUC: {auc:0.4f}, AP: {ap:0.4f}')
             prev_graph = query_graph
 
             cnt += 1
         
-        '''
-        if e % 10 == 0 and e:
-            evaluate(model)
-        '''
+            if cnt % 100 == 0 and cnt:
+                auc,ap = evaluate(model)
+                te_scores.append(auc)
+
+            if cnt == 500:
+                print(te_scores)
+                exit()
 
 @torch.no_grad()
 def evaluate(model):
@@ -106,14 +114,17 @@ def evaluate(model):
             edges = query_edges[:, st:en]
 
             x,ei,query = model.sample(edges, prev_graph)
-            labels = torch.sigmoid(model(x,ei,query))
+            labels = 1-torch.sigmoid(model(x,ei,query))
 
             preds.append(labels.flatten())
 
+        auc = roc_auc_score(torch.cat(ys), torch.cat(preds))
+        ap = average_precision_score(torch.cat(ys), torch.cat(preds))
+
         print("Stats so far")
-        print(f"AUC: {roc_auc_score(torch.cat(ys), torch.cat(preds))}")
-        print(f"AP : {average_precision_score(torch.cat(ys), torch.cat(preds))}")
-        return
+        print(f"AUC: {auc}")
+        print(f"AP : {ap}")
+        return auc,ap
 
     auc = roc_auc_score(torch.cat(ys), torch.cat(preds))
     ap = average_precision_score(torch.cat(ys), torch.cat(preds))

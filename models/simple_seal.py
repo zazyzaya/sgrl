@@ -10,14 +10,12 @@ class SEAL(nn.Module):
     The paper talks about needing to use 1-hop for 
     a dataset w 10k edges, or they had OOM errors.. 
     '''
-    def __init__(self, khops, gnn_depth=None, embed_size=32, hidden=64):
+    def __init__(self, khops, gnn_depth=None, embed_size=32, hidden=64): 
         super().__init__()
         self.khops = khops 
         self.dist_mp = MessagePassing(aggr='max')
 
-        self.enc_dim = self.__drnl_idx(
-            *torch.tensor([khops*2]).repeat(2).split(1)
-        )+1
+        self.enc_dim = (2+khops) * 2
         self.hidden_dim = hidden 
         self.embed_size = embed_size
 
@@ -32,6 +30,11 @@ class SEAL(nn.Module):
         #self.out_net = nn.Linear(embed_size, 1)
 
     def __drnl_idx(self, dx,dy):
+        '''
+        Appendix B specifically discourages using their 
+        Double Radius Node Labeling scheme as a onehot feature
+        because it implies magnitude. I'm going to rewrite
+        '''
         d = dx+dy
         idx = 1+torch.min(dx,dy) + d/2 * (d/2 + d%2 - 1)
         idx = idx.nan_to_num(0,0,0)
@@ -49,6 +52,13 @@ class SEAL(nn.Module):
         out[torch.arange(dx.size(0)), idx] = 1.
         return out 
     
+    def one_hot_node_distance(self, dx,dy):
+        num_nodes = dx.size(0)
+        out = torch.zeros(num_nodes, self.enc_dim)
+        out[torch.arange(num_nodes), dx.flatten()] = 1
+        out[torch.arange(num_nodes), dy.flatten()+self.khops+2] = 1
+        return out 
+
     def sample(self, query_edges, edge_index): 
         sgs = []
         offset = 0
@@ -72,8 +82,8 @@ class SEAL(nn.Module):
 
         # Matrix of distance to x or y 
         dist = torch.zeros(offset, 2)
-        dist[targets[:, 0], 0] = self.khops+1
-        dist[targets[:, 1], 1] = self.khops+1
+        dist[targets[0], 0] = self.khops+1
+        dist[targets[1], 1] = self.khops+1
 
         for _ in range(self.khops):
             d = self.dist_mp.propagate(sgs, x=dist-1)
@@ -81,10 +91,13 @@ class SEAL(nn.Module):
 
         # Convert s.t. starting nodes are 0, one hop is 1 etc 
         # Unreached nodes are khops+1
-        dist = (dist-self.khops + 1)
-        dist[dist == 0] = torch.inf 
+        dist = dist - (self.khops + 1)
+        dist *= -1 
+        dist = dist.long()
+        #dist[dist == (self.khops+1)] = torch.inf 
 
-        labels = self.dnrl(*dist.split(1,dim=1))
+        # labels = self.dnrl(*dist.split(1,dim=1))
+        labels = self.one_hot_node_distance(*dist.split(1,dim=1))
         return labels, sgs, targets 
     
     def forward(self, x, ei, targets):
@@ -112,4 +125,4 @@ if __name__ == '__main__':
     ]).T 
     seal = SEAL(1)
 
-    seal.sample(torch.tensor([[3,4], [0,3]]), ei)
+    seal.sample(torch.tensor([[0,3], [2,4]]), ei)
