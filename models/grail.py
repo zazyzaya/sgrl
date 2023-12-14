@@ -19,7 +19,7 @@ class GraIL(SEAL):
         super().__init__(khops, gnn_depth, embed_size, hidden)
         
         self.num_nodes = num_nodes
-        self.noninductive = False # This can be a param eventually
+        self.noninductive = False # Doesn't seem to help much
 
         if self.noninductive: 
             gnn_depth = khops if gnn_depth is None else gnn_depth
