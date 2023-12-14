@@ -1,4 +1,4 @@
-import torch 
+import torch
 
 def make_training_split(g, tr=0.8):
     anoms = g.edge_index[:, g.y == 1]
@@ -17,3 +17,4 @@ def make_training_split(g, tr=0.8):
     y[-anoms.size(0):] = 1
 
     return tr, (te,y)
+

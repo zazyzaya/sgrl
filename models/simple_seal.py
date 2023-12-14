@@ -10,10 +10,10 @@ class SEAL(nn.Module):
     The paper talks about needing to use 1-hop for 
     a dataset w 10k edges, or they had OOM errors.. 
     '''
-    def __init__(self, khops, embed_size=32, hidden=64):
+    def __init__(self, khops, gnn_depth=None, embed_size=32, hidden=64):
         super().__init__()
         self.khops = khops 
-        self.dist_mp = MessagePassing(aggr='min')
+        self.dist_mp = MessagePassing(aggr='max')
 
         self.enc_dim = self.__drnl_idx(
             *torch.tensor([khops*2]).repeat(2).split(1)
@@ -21,14 +21,15 @@ class SEAL(nn.Module):
         self.hidden_dim = hidden 
         self.embed_size = embed_size
 
+        gnn_depth = khops if gnn_depth is None else gnn_depth
         self.model = GCN(
             self.enc_dim, 
             self.hidden_dim, 
-            khops, 
+            gnn_depth, 
             out_channels=embed_size,
             dropout=0.1
         )
-        self.out_net = nn.Linear(embed_size, 1)
+        #self.out_net = nn.Linear(embed_size, 1)
 
     def __drnl_idx(self, dx,dy):
         d = dx+dy
@@ -70,18 +71,20 @@ class SEAL(nn.Module):
         targets = torch.cat(targets, dim=1)
 
         # Matrix of distance to x or y 
-        dist = torch.full((offset, 2), torch.inf)
-        dist[targets[0], 0] = 0
-        dist[targets[1], 1] = 0
+        dist = torch.zeros(offset, 2)
+        dist[targets[:, 0], 0] = self.khops+1
+        dist[targets[:, 1], 1] = self.khops+1
 
         for _ in range(self.khops):
-            # TODO if there are no edges, defaults to 0 
-            # so everything gets set to 0 
-            d = 1 + self.dist_mp.propagate(sgs, x=dist)
-            dist = torch.min(dist, d)
+            d = self.dist_mp.propagate(sgs, x=dist-1)
+            dist = torch.max(dist,d)
+
+        # Convert s.t. starting nodes are 0, one hop is 1 etc 
+        # Unreached nodes are khops+1
+        dist = (dist-self.khops + 1)
+        dist[dist == 0] = torch.inf 
 
         labels = self.dnrl(*dist.split(1,dim=1))
-
         return labels, sgs, targets 
     
     def forward(self, x, ei, targets):
@@ -92,4 +95,21 @@ class SEAL(nn.Module):
         src = z[targets[0]]
         dst = z[targets[1]]
 
-        return self.out_net(src*dst)
+        return (src*dst).sum(dim=1, keepdim=True)
+
+if __name__ == '__main__':
+    '''
+        0   1   2
+         \ / \ /
+          3   4
+         / \ / \ 
+        5   6   7
+    '''
+    ei = torch.tensor([
+        [0,3], [3,0], [3,1], [1,3], [1,4], [4,1], 
+        [4,2], [2,4], [5,3], [3,5], [3,6], [6,3], 
+        [6,4], [4,6], [4,7], [7,4]
+    ]).T 
+    seal = SEAL(1)
+
+    seal.sample(torch.tensor([[3,4], [0,3]]), ei)
