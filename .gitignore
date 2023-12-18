@@ -1,4 +1,5 @@
 databuilders/tmp/
+saved_graphs/
 __pycache__/
 *.txt
 *.pt
