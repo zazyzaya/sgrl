@@ -3,84 +3,122 @@ import torch
 from torch_geometric.data import Data 
 from tqdm import tqdm  
 
-DATA = '/mnt/raid1_ssd_4tb/datasets/LANL15'
-AUTH = f'{DATA}/auth.txt.gz'
-RED  = f'{DATA}/redteam.txt.gz'
+from lanl_globals import RAW_LANL, SPLIT_LANL, LAST_FILE
+
+RED  = f'{RAW_LANL}/redteam.txt.gz'
 OUT = 'tmp'
 
-auth = gzip.open(AUTH, 'rt')
+red_events = dict()
 red = gzip.open(RED, 'rt')
-etypes = {'U':0, 'C':1, 'A':2}
+
+rline = red.readline() 
+while rline:
+    t,usr,s,d = rline.split(',')
+    d = d[:-1] # Strip newline 
+    t = int(t)
+    usr = usr.split('@')[0]
+
+    if t not in red_events:
+        red_events[t] = []
+    
+    red_events[t].append((usr,s,d))
+    rline = red.readline()
 
 src, dst = [],[]
-edge_attr, ts = [],[]
+ts = []
 y_idx = []
+ntypes = []
+
+USR = 0
+COM = 1
+ANO = 3 
+ETC = 2
+
+get_ntype = lambda x : \
+    USR if x.startswith('U') \
+    else COM if x.startswith('C') \
+    else ANO if x.startswith('ANON') \
+    else ETC # I don't think there's anything else, but just in case
+
+def parse_str(n):
+    nt = get_ntype(n) 
+    
+    # Users and computers
+    # Users formatted as U123@DOM1
+    # Computers as C123$@DOM1 (if src node, else just C123)
+    if nt < 2: 
+        n  = n.split('@')[0]
+        if nt == 1:
+            n = n.replace('$', '')
+    
+    return n, nt
 
 nmap = dict()
 def get_nid(n):
     if not (nid := nmap.get(n)):
         nid = len(nmap)
         nmap[n] = nid 
+        ntypes.append(get_ntype(n))
     return nid 
 
-def red_event():
-    line = red.readline()
-    while(line):
-        t,usr,s,d = line.split(',')
-        d = d[:-1] # Strip newline 
-        yield t,usr,s,d 
-
-        line = red.readline()
-
-red_gen = red_event()
-cur_red = next(red_gen)
-
 def process_line(l):
-    global cur_red
+    global src,dst
 
     l = l.split(',')
-    ts.append(int(l[0]))
-    edge_attr.append(etypes.get(l[1][0], 2))
-    src.append(get_nid(l[3]))
-    dst.append(get_nid(l[4]))
 
-    if l[0] == cur_red[0]:
-        if  l[1] == cur_red[1] and \
-            l[3] == cur_red[2] and \
-            l[4] == cur_red[3]: 
+    #src_u, sut = parse_str(l[1])
+    src_c, sct = parse_str(l[3])
+    #dst_u, dut = parse_str(l[2])
+    dst_c, dct = parse_str(l[4])
 
-            y_idx.append(len(src))
-            cur_red = next(red_gen)
+    # Want to make the following edges from each line:
+    # SRC       DST
+    #  u         u
+    #  |         |
+    #  c ------- c 
 
-def dump():
-    global src,dst,ts,edge_attr,y_idx
+    src.append(get_nid(src_c))
+    dst.append(get_nid(dst_c))
 
-    fname = f'{OUT}/{ts[0]//(60*60)}.pt'
+def dump(f):
+    global src,dst
+
+    fname = f'{OUT}/{f}.pt'
+    edge_index, weights = torch.tensor([src,dst], dtype=torch.long).unique(dim=1, return_counts=True)
+
+    reds = []
+    st = f*3600; en = (f+1)*3600 
+    for k,v in red_events.items():
+        if k >= st and k < en:
+            for (usr,s,d) in v: 
+                reds.append([get_nid(s), get_nid(d)])
+
+    if reds: 
+        reds = torch.tensor(reds).T 
+        red_src = (edge_index[0] == reds[0].unsqueeze(-1))
+        red_dst = (edge_index[1] == reds[1].unsqueeze(-1))
+        y_idx = (red_src * red_dst).sum(dim=0).nonzero().squeeze(-1)
+    else:
+        y_idx = torch.tensor([])
+
     g = Data(
-        edge_index = torch.tensor([src,dst], dtype=torch.long),
-        ts=torch.tensor(ts),
-        edge_attr=torch.tensor(edge_attr),
-        y_idx=torch.tensor(y_idx)
+        edge_index=edge_index, 
+        edge_weight=weights,
+        y_idx = y_idx.long()
     )
     torch.save(g, fname)
 
-    src,dst,ts,edge_attr,y_idx = [],[],[],[],[]
+    src,dst = [],[]
 
-line = auth.readline()
-prog = tqdm()
-dump_rate = next_dump = 60*60
 
-while(line):
-    t = int(line.split(',', 1)[0])
-    if t >= next_dump:
-        dump()
-        next_dump += dump_rate
+for f in tqdm(range(LAST_FILE+1)):
+    cur_f = open(f'{SPLIT_LANL}/{f}.txt')
+    
+    line = cur_f.readline()
+    while(line):
+        if 'NTLM' in line.upper():
+            process_line(line)
+        line = cur_f.readline()
 
-    if 'NTLM' in line:
-        process_line(line)
-        prog.desc = str(ts[-1])
-        prog.update()
-
-    line = auth.readline()
-
-dump()
+    cur_f.close()
+    dump(f)

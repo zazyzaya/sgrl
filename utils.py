@@ -18,3 +18,14 @@ def make_training_split(g, tr=0.8):
 
     return tr, (te,y)
 
+import matplotlib.pyplot as plt 
+from sklearn.metrics import roc_curve, roc_auc_score
+def generate_auc_plot(clf, X_test, y_test):
+    y_pred_proba = clf.predict_proba(X_test)[::,1]
+    fpr, tpr, _ = roc_curve(y_test,  y_pred_proba)
+    auc = roc_auc_score(y_test, y_pred_proba)
+    
+    plt.clf()
+    plt.plot(fpr,tpr,label="data 1, auc="+str(auc))
+    plt.legend(loc=4)
+    plt.savefig('auc.png')
