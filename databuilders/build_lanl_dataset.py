@@ -55,7 +55,7 @@ def parse_str(n):
 
 nmap = dict()
 def get_nid(n):
-    if not (nid := nmap.get(n)):
+    if (nid := nmap.get(n)) is None:
         nid = len(nmap)
         nmap[n] = nid 
         ntypes.append(get_ntype(n))
@@ -66,9 +66,9 @@ def process_line(l):
 
     l = l.split(',')
 
-    #src_u, sut = parse_str(l[1])
+    src_u, sut = parse_str(l[1])
     src_c, sct = parse_str(l[3])
-    #dst_u, dut = parse_str(l[2])
+    dst_u, dut = parse_str(l[2])
     dst_c, dct = parse_str(l[4])
 
     # Want to make the following edges from each line:
@@ -77,8 +77,8 @@ def process_line(l):
     #  |         |
     #  c ------- c 
 
-    src.append(get_nid(src_c))
-    dst.append(get_nid(dst_c))
+    src += [get_nid(src_c), get_nid(src_u), get_nid(dst_u)]
+    dst += [get_nid(dst_c), get_nid(src_c), get_nid(dst_c)]
 
 def dump(f):
     global src,dst
