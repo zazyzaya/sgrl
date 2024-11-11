@@ -1,0 +1,38 @@
+ts,src,dst,Type
+2019-09-23T11:24:54-4:00,Sysclient0201,Sysclient0201,Initial compromise
+2019-09-23T12:58:20-4:00,Sysclient0201,142.20.56.202/22,Arp scan
+2019-09-23T13:15:48-4:00,Sysclient0201,142.20.56.0/24,Ping sweep
+2019-09-23T13:24:03-4:00,Sysclient0201,Sysclient0402,Lateral movement
+2019-09-23T13:29:47-4:00,Sysclient0402,142.20.57.0/24,Ping sweep
+2019-09-23T13:35:22-4:00,Sysclient0402,Sysclient0660,Lateral movement
+2019-09-23T14:04:45-4:00,Sysclient0660,DC1,Lateral movement
+2019-09-23T14:45:13-4:00,DC1,Sysclient0104,Lateral movement
+2019-09-23T14:45:13-4:00,DC1,Sysclient0170,Lateral movement
+2019-09-23T14:45:13-4:00,DC1,Sysclient0205,Lateral movement
+2019-09-23T14:45:13-4:00,DC1,Sysclient0255,Lateral movement
+2019-09-23T14:45:13-4:00,DC1,Sysclient0321,Lateral movement
+2019-09-23T14:45:13-4:00,DC1,Sysclient0355,Lateral movement
+2019-09-23T14:45:13-4:00,DC1,Sysclient0419,Lateral movement
+2019-09-23T14:45:13-4:00,DC1,Sysclient0462,Lateral movement
+2019-09-23T14:45:13-4:00,DC1,Sysclient0503,Lateral movement
+2019-09-23T14:45:13-4:00,DC1,Sysclient0559,Lateral movement
+2019-09-23T14:45:13-4:00,DC1,Sysclient0609,Lateral movement
+2019-09-23T14:45:13-4:00,DC1,Sysclient0771,Lateral movement
+2019-09-23T14:45:13-4:00,DC1,Sysclient0874,Lateral movement
+2019-09-23T14:45:13-4:00,DC1,Sysclient0955,Lateral movement
+2019-09-24T10:36:51-4:00,Sysclient0501,Sysclient0501,Initial compromise
+2019-09-24T10:40:14-4:00,Sysclient0811,Sysclient0811,Initial compromise
+2019-09-24T10:46:02-4:00,Sysclient0501,202.6.172.98:443,
+2019-09-24T11:20:19-4:00,Sysclient0501,DC1,Lateral movement
+2019-09-24T11:33:15-4:00,DC1,Sysclient0501,Lateral movement
+2019-09-24T11:33:15-4:00,Sysclient0501,Sysclient0974,RDP
+2019-09-24T13:54:43-4:00,Sysclient0974,Sysclient0005,RDP
+2019-09-24T15:42:36-4:00,DC1,Sysclient0010,Lateral movement
+2019-09-24T15:42:36-4:00,DC1,Sysclient0069,Lateral movement
+2019-09-24T15:42:36-4:00,DC1,Sysclient0203,Lateral movement
+2019-09-24T15:42:36-4:00,DC1,Sysclient0358,Lateral movement
+2019-09-24T15:42:36-4:00,DC1,Sysclient0618,Lateral movement
+2019-09-24T15:42:36-4:00,DC1,Sysclient0851,Lateral movement
+2019-09-25T10:29:42-4:00,Sysclient0051,Sysclient0051,Initial Compromise
+2019-09-25T10:33:55-4:00,Sysclient0051,142.20.56.0/2,ARP scan
+2019-09-25T11:23:31-4:00,Sysclient0351,Sysclient0351,Initial Compromise

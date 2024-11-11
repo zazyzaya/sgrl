@@ -3,3 +3,6 @@ saved_graphs/
 __pycache__/
 *.txt
 *.pt
+scratch.py
+user_split/
+flow_split/
