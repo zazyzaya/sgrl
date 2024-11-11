@@ -114,12 +114,14 @@ def build_graph(st,en, granularity=60):
         ts += [i] * len(ew)
 
     # Use user vs computer as features
-    x = torch.zeros(max(max(src), max(dst)), 3)
+    x = torch.zeros(max(max(src), max(dst))+1, 3)
     x[:MAX_HOSTS, 0] = 1
     x[MAX_HOSTS:, 1] = 1
 
     # sysadmin is special, and gets its own label
-    x[user_map['sysadmin']] = torch.tensor([0,0,1])
+    for value in ['sysadmin', 'Administrator']:
+        if (id := user_map.get(value)) is not None:
+            x[id] = torch.tensor([0,0,1])
 
     # Re-number to ignore unused nodes
     edge_index = torch.tensor([src,dst])
@@ -127,11 +129,12 @@ def build_graph(st,en, granularity=60):
     x = x[uq]
 
     node_names = []
+    inv_usr_map = {v:k for k,v in user_map.items()}
     for idx in uq:
         if idx < MAX_HOSTS:
             node_names.append(f'Sysclient{idx.item():04}')
         else:
-            node_names.append(user_map[idx.item()])
+            node_names.append(inv_usr_map[idx.item()])
 
     edge_weight = torch.tensor(ew)
     ts = torch.tensor(ts)
