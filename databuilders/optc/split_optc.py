@@ -85,7 +85,7 @@ def split_all_flows(nmap_f, fold=TRAIN):
         node_map = pickle.load(f)
 
     with Manager() as manager:
-        p = Pool(processes=16)
+        p = Pool(processes=64)
         lock = manager.Lock()
 
         # Start all jobs
@@ -114,7 +114,7 @@ def copy_one(in_f, node_map, lock, i, tot):
     while line:
         datum = json.loads(line)
 
-        if datum['action'] == 'START' and datum['object'] == 'FLOW':
+        if datum['action'] == 'MESSAGE' and datum['object'] == 'FLOW':
             props = datum['properties']
             src_ip = props['src_ip']
             dst_ip = props['dest_ip']
@@ -313,8 +313,10 @@ if __name__ == '__main__':
     #split_all('flow_split/nmap.pkl')
     #split_all(f'{RAW_OPTC}/../flow_split/nmap.pkl', fold=TEST)
 
-    split_all_sessions(fold=TRAIN)
-    split_all_sessions(fold=TEST)
+    #split_all_sessions(fold=TRAIN)
+    #split_all_sessions(fold=TEST)
+    split_all_flows(f'{RAW_OPTC}/../flow_split/nmap.pkl',fold=TRAIN)
+    split_all_flows(f'{RAW_OPTC}/../flow_split/nmap.pkl', fold=TEST)
 
     '''
     # Testing
