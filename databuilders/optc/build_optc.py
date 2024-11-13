@@ -10,7 +10,7 @@ from tqdm import tqdm
 from databuilders.optc.split_optc import FIRST_TS, SNAPSHOT_SIZE
 
 # Output of split_optc
-FLOW_DIR = '/mnt/raid1_ssd_4tb/datasets/OpTC/flow_split'
+FLOW_DIR = '/mnt/raid1_ssd_4tb/datasets/OpTC/flow_message_split'
 USER_DIR = '/mnt/raid1_ssd_4tb/datasets/OpTC/user_split'
 
 MAX_HOSTS = 1000 # I think it's actually less than this but it doesn't matter
@@ -111,7 +111,7 @@ def build_graph(st,en, granularity=60):
         src += list(s)
         dst += list(d)
         ew += w
-        ts += [i] * len(ew)
+        ts += [i] * len(w)
 
     # Use user vs computer as features
     x = torch.zeros(max(max(src), max(dst))+1, 3)

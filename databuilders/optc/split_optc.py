@@ -315,8 +315,8 @@ if __name__ == '__main__':
 
     #split_all_sessions(fold=TRAIN)
     #split_all_sessions(fold=TEST)
-    split_all_flows(f'{RAW_OPTC}/../flow_split/nmap.pkl',fold=TRAIN)
-    split_all_flows(f'{RAW_OPTC}/../flow_split/nmap.pkl', fold=TEST)
+    #split_all_flows(f'{RAW_OPTC}/../flow_start_split/nmap.pkl',fold=TRAIN)
+    split_all_flows(f'{RAW_OPTC}/../flow_start_split/nmap.pkl', fold=TEST)
 
     '''
     # Testing
